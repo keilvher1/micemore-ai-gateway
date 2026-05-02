@@ -1,0 +1,33 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+sse-starlette>=2.1.0
+pydantic>=2.7.0
+python-multipart>=0.0.9
+
+# LLM / embedding
+anthropic>=0.40.0
+openai>=1.50.0
+
+# RAG infra
+langchain>=0.3.0
+langchain-core>=0.3.0
+pinecone-client>=5.0.0
+
+# PDF ingest
+pypdf>=4.3.0
+
+# Phase 2: Glossary loader
+PyYAML>=6.0
+
+# Phase 2: Live translation (Sprint 2~3 에 활성, Sprint 1 은 mock)
+websockets>=12.0
+elevenlabs>=1.0
+silero-vad>=0.4
+soundfile>=0.12
+numpy>=1.24
+
+# Lambda 배포
+mangum>=0.17.0
+
+# 옵션 — 운영 환경에서만 활성
+sentry-sdk>=2.10.0

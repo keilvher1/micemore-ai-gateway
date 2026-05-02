@@ -1,0 +1,51 @@
+# 회사·제품 보존 화이트리스트 — 30개 시드.
+#
+# 매칭 시 번역기에 "이 토큰은 원문 그대로 유지" 라는 신호를 system prompt 에 추가.
+# Phase 3 에서 행사별 동적 등록 (organizer 가 부스 등록 시 자동 추가) 으로 확장.
+#
+# 카테고리:
+#   tech_global  — 글로벌 테크 vendor (참가자 인지도 ↑)
+#   tech_kr      — 한국 테크 (한글-영문 표기 혼용 위험)
+#   mice_kr      — MICE 산업 한국 기관
+#   demo         — Phase 1·2 데모용 가공 회사명
+
+schema_version: 1
+
+companies:
+  # tech_global
+  - { name: "OpenAI",           category: tech_global,    aliases: [] }
+  - { name: "Anthropic",        category: tech_global,    aliases: [Claude] }
+  - { name: "Microsoft",        category: tech_global,    aliases: [MS, Azure] }
+  - { name: "Google",           category: tech_global,    aliases: [Alphabet, GCP] }
+  - { name: "AWS",              category: tech_global,    aliases: ["Amazon Web Services"] }
+  - { name: "NVIDIA",           category: tech_global,    aliases: [] }
+  - { name: "Meta",             category: tech_global,    aliases: [Facebook] }
+  - { name: "Apple",            category: tech_global,    aliases: [] }
+  - { name: "IBM",              category: tech_global,    aliases: [] }
+  - { name: "Intel",            category: tech_global,    aliases: [] }
+
+  # tech_kr (한국 회사 — 한글 표기 가능하나 영문 우선)
+  - { name: "Samsung",          category: tech_kr,        aliases: [삼성, 삼성전자] }
+  - { name: "LG",               category: tech_kr,        aliases: [엘지, "LG전자"] }
+  - { name: "Hyundai",          category: tech_kr,        aliases: [현대] }
+  - { name: "Naver",            category: tech_kr,        aliases: [네이버] }
+  - { name: "Kakao",            category: tech_kr,        aliases: [카카오] }
+  - { name: "SK",               category: tech_kr,        aliases: ["SK하이닉스", "SK텔레콤"] }
+  - { name: "POSCO",            category: tech_kr,        aliases: [포스코] }
+  - { name: "Krafton",          category: tech_kr,        aliases: [크래프톤] }
+
+  # mice_kr (MICE 산업 한국 기관 — 한글 음역 금지)
+  - { name: "KOTRA",            category: mice_kr,        aliases: ["대한무역투자진흥공사"] }
+  - { name: "KINTEX",           category: mice_kr,        aliases: [킨텍스] }
+  - { name: "COEX",             category: mice_kr,        aliases: [코엑스] }
+  - { name: "BEXCO",            category: mice_kr,        aliases: [벡스코] }
+  - { name: "EXCO",             category: mice_kr,        aliases: [엑스코] }
+  - { name: "ICC Jeju",         category: mice_kr,        aliases: ["제주 ICC"] }
+  - { name: "K-MICE",           category: mice_kr,        aliases: [] }
+
+  # demo (Phase 1·2 시연용 가상 회사)
+  - { name: "Lumen Labs",       category: demo,           aliases: ["루멘랩스"] }
+  - { name: "Paperless Co.",    category: demo,           aliases: ["페이퍼리스"] }
+  - { name: "NovaSight",        category: demo,           aliases: ["노바사이트"] }
+  - { name: "Ledger Seoul",     category: demo,           aliases: ["레저서울"] }
+  - { name: "MICEMore",         category: demo,           aliases: ["마이스모어"] }

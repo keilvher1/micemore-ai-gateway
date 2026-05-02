@@ -1,0 +1,35 @@
+# 환경변수 (실 키 포함 가능)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+pytest-cache-files-*/
+.mypy_cache/
+.ruff_cache/
+
+# 빌드/배포 산출물
+build/
+dist/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 모델/데이터 캐시
+data/cache/
+models/*.pkl
+models/*.bin
+
+# 시드 산출물 (Pinecone dry-run 로그 등)
+tools/seed_output/

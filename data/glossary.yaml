@@ -1,0 +1,97 @@
+# MICE 도메인 번역 사전 — Claude system prompt 에 주입.
+#
+# 운영자 가 행사별로 추가/수정할 수 있도록 외부 YAML 로 분리.
+# 코드 변경 없이 사전만 갱신하면 다음 호출부터 적용됨.
+#
+# Schema 버전: 1
+schema_version: 1
+
+# ---------------------------------------------------------------------------
+# 약어 — 번역하지 않고 원문 그대로 유지 (한·영 양방향 동일)
+# ---------------------------------------------------------------------------
+preserved_acronyms:
+  # MICE 산업
+  - MICE        # Meetings, Incentives, Conferences, Exhibitions
+  - PCO         # Professional Congress Organizer
+  - DMC         # Destination Management Company
+  - CVB         # Convention & Visitors Bureau
+  - AV          # Audio Visual
+  # 비즈니스 일반
+  - B2B
+  - B2C
+  - ROI         # Return on Investment
+  - MOU         # Memorandum of Understanding
+  - NDA         # Non-Disclosure Agreement
+  - KPI
+  - SaaS
+  - API
+  - OEM
+  - ODM
+  - FOB         # Free On Board
+  - CIF         # Cost, Insurance, Freight
+  - RFP         # Request for Proposal
+  - RFQ         # Request for Quotation
+  - POC         # Proof of Concept
+  - MVP         # Minimum Viable Product
+  - USP         # Unique Selling Proposition
+  - TAM         # Total Addressable Market
+  - SAM
+  - SOM
+  - PoP         # Point of Presence
+
+# ---------------------------------------------------------------------------
+# 보존 패턴 — 정규식. 매칭되는 토큰은 원문 유지.
+# ---------------------------------------------------------------------------
+preserve_patterns:
+  - '^[A-Z][a-zA-Z0-9]+(?:\s[A-Z][a-zA-Z0-9]+)*$'   # PascalCase 단어
+  - '^[A-Z]{2,}(?:[A-Z][a-z]+)*$'                    # 약어+이름 (KAIST, KOTRA)
+  - 'v?\d+(?:\.\d+){1,3}'                            # 버전번호 v1.2.3
+  - '\d+\s*(?:mm|µm|nm|cm|m|GHz|MHz|kHz|kg|t/h|fps|dpi|nit|lm|W|kW|V|A|Hz)'
+
+# ---------------------------------------------------------------------------
+# 톤 가이드 — 언어쌍별. system prompt 에 그대로 삽입.
+# ---------------------------------------------------------------------------
+tone_guides:
+  ko_to_en: |
+    - Korean 합쇼체 ("…습니다", "…하시겠어요") → English business neutral
+      ("we will / would you like to / could we").
+    - Honorifics like "고객님 / 사장님 / 대표님" → drop or use "you" / company name.
+      Do NOT transliterate.
+    - Service verbs like "모셔주시면 / 챙겨드리겠습니다" → "we'll arrange / we'll prepare".
+    - Casual 어말 "…요" should be elevated one level (informal → neutral business).
+  en_to_ko: |
+    - English neutral business → Korean 합쇼체 일관 ("…습니다, …하실까요").
+    - 1인칭 "I" → "저희" 우선 (회사 대명사). 개인 의견일 때만 "제가".
+    - "Thanks!" / "Sure!" → "감사합니다 / 네, 알겠습니다" (격상).
+    - 가격·계약·법무 관련은 추측 없이 옮기고 끝에 "확인 후 답변드리겠습니다" 추가.
+  ja_to_ko: |
+    - 일본어 정중체 (です・ます) → 한국어 합쇼체. 친근체 (だ・である) 금지.
+    - 일본어 회사명·상품명은 한글 음역 X — 원어 표기 유지.
+  zh_to_ko: |
+    - 중국어 → 한국어. 회사명·인명 한자/병음 그대로 유지, 한글 음역 X.
+    - 가격 표현 "元" 은 "위안" 으로 옮기되 숫자는 유지.
+
+# ---------------------------------------------------------------------------
+# 도메인 사전 (선택) — 자주 헷갈리는 용어 직접 매핑
+# ---------------------------------------------------------------------------
+term_pairs:
+  - { ko: "전시면적",       en: "exhibition floor area" }
+  - { ko: "부스 임차료",     en: "booth rental fee" }
+  - { ko: "설치/철거",      en: "installation/dismantle (move-in / move-out)" }
+  - { ko: "주최자",         en: "organizer" }
+  - { ko: "후원사",         en: "sponsor" }
+  - { ko: "참가신청",       en: "registration" }
+  - { ko: "사전등록",       en: "pre-registration" }
+  - { ko: "현장등록",       en: "on-site registration" }
+  - { ko: "초청장",         en: "invitation letter" }
+  - { ko: "팜플릿",         en: "brochure" }
+  - { ko: "리플렛",         en: "leaflet" }
+  - { ko: "기조연설",       en: "keynote address" }
+  - { ko: "패널 토의",      en: "panel discussion" }
+  - { ko: "라운드 테이블",  en: "round table" }
+  - { ko: "네트워킹 디너",  en: "networking dinner" }
+  - { ko: "런천",           en: "luncheon" }
+  - { ko: "상담회",         en: "business matching session" }
+  - { ko: "1:1 미팅",       en: "1-on-1 meeting" }
+  - { ko: "데모",           en: "demo" }
+  - { ko: "시연",           en: "demonstration" }
