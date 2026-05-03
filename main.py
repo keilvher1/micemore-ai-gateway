@@ -11,6 +11,15 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# .env 자동 로드 — uvicorn / lambda 진입 시 환경변수 주입.
+# OS 환경변수가 이미 있으면 덮어쓰지 않음 (override=False).
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv(Path(__file__).resolve().parent / ".env", override=False)
+except ImportError:
+    pass
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
