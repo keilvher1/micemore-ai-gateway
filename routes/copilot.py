@@ -21,6 +21,12 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
+from rag.chat_memory import (
+    append_turn,
+    history_for_prompt,
+    load_session,
+    user_context_for_prompt,
+)
 from rag.pipeline import answer_with_rag, mock_answer
 
 log = logging.getLogger(__name__)
@@ -41,6 +47,12 @@ class CopilotQuery(BaseModel):
     # auto:        둘 다 검색 → score 기준 상위 k 청크 합산 (공모전 차별화 핵심)
     source: str = Field(default="booth", pattern=r"^(booth|tour|auto)$")
     area_code: str | None = Field(default=None, description="source=tour|auto 일 때 지역 코드")
+    # P2 — Boomi 세션 메모리. user_id 와 user_profile 는 Flutter 가 보내줌.
+    user_id: str | None = Field(default=None, description="Firebase Auth uid (선택)")
+    user_profile: dict | None = Field(
+        default=None,
+        description="{name, interests[], language} — 첫 만남 시 Boomi 가 인사에 사용.",
+    )
 
 
 def _sse(event: dict) -> dict:
@@ -61,12 +73,26 @@ async def _stream(query: CopilotQuery) -> AsyncIterator[dict]:
         }
     )
 
+    # P2 — 세션 메모리: 사용자 컨텍스트 + 최근 대화 이력 로드.
+    user_context: dict | None = None
+    history: list[dict] | None = None
+    if query.user_id and not use_mock:
+        try:
+            session = await load_session(query.user_id, query.booth_id)
+            user_context = user_context_for_prompt(session, fallback_lang=query.target_lang)
+            history = history_for_prompt(session)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("chat_memory load failed: %s", exc)
+    elif query.user_profile:
+        user_context = query.user_profile
+
+    full_answer_chunks: list[str] = []
     try:
         if use_mock:
             gen = mock_answer(query.question, query.target_lang)
         else:
             # D-4 단계 7 — source 에 따라 RAG namespace 라우팅.
-            # answer_with_rag 가 source/area_code 파라미터 미구현이면 기본(booth) 동작.
+            # P2 — user_context / history 도 함께 전달.
             try:
                 gen = answer_with_rag(  # type: ignore[call-arg]
                     booth_id=query.booth_id,
@@ -74,6 +100,8 @@ async def _stream(query: CopilotQuery) -> AsyncIterator[dict]:
                     target_lang=query.target_lang,
                     source=query.source,
                     area_code=query.area_code,
+                    user_context=user_context,
+                    history=history,
                 )
             except TypeError:
                 gen = answer_with_rag(
@@ -83,6 +111,8 @@ async def _stream(query: CopilotQuery) -> AsyncIterator[dict]:
                 )
 
         async for evt in gen:
+            if evt.get("type") == "token":
+                full_answer_chunks.append(evt.get("value", ""))
             yield _sse(evt)
 
     except asyncio.CancelledError:
@@ -91,6 +121,21 @@ async def _stream(query: CopilotQuery) -> AsyncIterator[dict]:
     except Exception as exc:  # noqa: BLE001
         log.exception("RAG pipeline failed")
         yield _sse({"type": "error", "message": str(exc) if use_mock else "internal_error"})
+
+    # P2 — turn 누적 (user 발화 + assistant 답변 둘 다)
+    if query.user_id and not use_mock:
+        try:
+            await append_turn(
+                query.user_id, query.booth_id, "user", query.question,
+                user_profile=query.user_profile,
+            )
+            answer_text = "".join(full_answer_chunks).strip()
+            if answer_text:
+                await append_turn(
+                    query.user_id, query.booth_id, "assistant", answer_text,
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("chat_memory append failed: %s", exc)
 
     yield _sse({"type": "done"})
 

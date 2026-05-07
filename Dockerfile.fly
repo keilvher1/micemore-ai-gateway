@@ -1,0 +1,27 @@
+# Fly.io 배포용 — uvicorn HTTP 서버 직접 실행 (Lambda 어댑터 미사용)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 시스템 패키지 (numpy/silero-vad 빌드 필요 시)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 의존성 (캐시 활용)
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir python-dotenv && \
+    pip uninstall -y pinecone-client 2>/dev/null || true && \
+    pip install --no-cache-dir pinecone
+
+# 코드 (전체 복사 — 각 폴더 명시는 깨지기 쉬움)
+COPY . .
+
+# Fly.io 는 PORT 환경변수로 포트 주입
+ENV PORT=8080
+EXPOSE 8080
+
+# .env 가 없어도 동작하도록 OS 환경변수 우선 (fly secrets 가 채움)
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]

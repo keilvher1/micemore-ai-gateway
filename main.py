@@ -44,6 +44,7 @@ from routes.visitors import router as visitors_router
 from routes.match import router as match_router
 from routes.tourapi import router as tourapi_router
 from routes.voice import router as voice_router
+from routes.realtime import router as realtime_router
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 USE_MOCK = os.getenv("USE_MOCK", "false").lower() == "true"
@@ -138,6 +139,8 @@ app.include_router(match_router)         # /me/matches
 app.include_router(tourapi_router)       # /tourapi (한국관광공사 OpenAPI — 공모전 필수)
 # D-4 단계 3 — Whisper STT + ElevenLabs TTS (4 voice 매핑). PLACEHOLDER 시 mock 폴백.
 app.include_router(voice_router, prefix="/voice", tags=["voice"])
+# Realtime API WebSocket 프록시 — Boomi 음성-음성 대화
+app.include_router(realtime_router, tags=["realtime"])
 
 
 # Lambda 배포 시 사용하는 ASGI → Lambda 어댑터.

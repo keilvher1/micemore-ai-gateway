@@ -22,6 +22,8 @@ from rag.embeddings import embed_query
 log = logging.getLogger(__name__)
 
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+LLM_PRIMARY = os.getenv("LLM_PRIMARY", "openai").lower()  # "openai" | "anthropic"
 PINECONE_INDEX = os.getenv("PINECONE_INDEX", "micemore-booths")
 TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 CONFIDENCE_FLOOR = float(os.getenv("RAG_CONFIDENCE_FLOOR", "0.55"))
@@ -107,11 +109,14 @@ async def answer_with_rag(
     target_lang: str,
     source: str = "booth",
     area_code: str | None = None,
+    user_context: dict | None = None,
+    history: list[dict] | None = None,
 ) -> AsyncIterator[dict]:
     """실 LLM 기반 RAG. SSE 이벤트 dict 를 yield.
 
     source / area_code 는 D-4 단계 7 — RAG 인제스트 namespace 라우팅.
-    placeholder 키 감지 시 자동으로 빈 청크 → 신뢰도 폴백 메시지 (mock 모드와 동일 UX).
+    user_context / history 는 P2 (Firestore chat_sessions) 가 채움.
+    placeholder 키 감지 시 자동으로 빈 청크 → 신뢰도 폴백 메시지.
     """
     chunks = await _retrieve(
         booth_id,
@@ -140,28 +145,77 @@ async def answer_with_rag(
     ]
     yield {"type": "citations", "items": citations}
 
-    # Claude 호출
-    try:
-        import anthropic  # type: ignore
-    except ImportError:  # pragma: no cover
-        yield {"type": "error", "message": "anthropic_sdk_missing"}
-        return
-
-    client = anthropic.AsyncAnthropic()
+    # LLM 호출 — primary 시도 후 실패 시 secondary 폴백
     system = build_system_prompt(
         booth_id=booth_id,
         target_lang=target_lang,
         sources=chunks,
+        user_context=user_context,
+        history=history,
     )
 
+    backends = ["openai", "anthropic"] if LLM_PRIMARY == "openai" else ["anthropic", "openai"]
+    last_err: Exception | None = None
+    for backend in backends:
+        try:
+            if backend == "openai":
+                async for tok in _stream_openai(system=system, user=question):
+                    yield {"type": "token", "value": tok}
+            else:
+                async for tok in _stream_anthropic(system=system, user=question):
+                    yield {"type": "token", "value": tok}
+            return  # 성공 → 폴백 안 함
+        except Exception as e:
+            last_err = e
+            log.warning("LLM backend %s failed: %s — falling back", backend, e)
+            continue
+    # 양쪽 모두 실패
+    yield {
+        "type": "error",
+        "message": f"all_llm_backends_failed: {last_err}",
+    }
+
+
+async def _stream_openai(system: str, user: str) -> AsyncIterator[str]:
+    """OpenAI Chat Completions 스트리밍."""
+    try:
+        from openai import AsyncOpenAI  # type: ignore
+    except ImportError:
+        raise RuntimeError("openai_sdk_missing")
+    client = AsyncOpenAI()
+    stream = await client.chat.completions.create(
+        model=OPENAI_MODEL,
+        max_tokens=600,
+        stream=True,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    )
+    async for chunk in stream:
+        try:
+            delta = chunk.choices[0].delta.content
+        except (IndexError, AttributeError):
+            delta = None
+        if delta:
+            yield delta
+
+
+async def _stream_anthropic(system: str, user: str) -> AsyncIterator[str]:
+    """Anthropic Claude messages.stream — credit 다 떨어지면 raise."""
+    try:
+        import anthropic  # type: ignore
+    except ImportError:
+        raise RuntimeError("anthropic_sdk_missing")
+    client = anthropic.AsyncAnthropic()
     async with client.messages.stream(
         model=ANTHROPIC_MODEL,
         max_tokens=600,
         system=system,
-        messages=[{"role": "user", "content": question}],
+        messages=[{"role": "user", "content": user}],
     ) as stream:
         async for text in stream.text_stream:
-            yield {"type": "token", "value": text}
+            yield text
 
 
 async def mock_answer(question: str, target_lang: str) -> AsyncIterator[dict]:
